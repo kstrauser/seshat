@@ -105,10 +105,10 @@ writing. This is pure coincidence.
 
 # License
 
-The standalone "seshat" broker bot uses the GPL-licensed xmpppy library, and
-is thus also distributed under the GPL (v3 or later).
+The standalone broker bot uses the GPL-licensed xmpppy library, and is thus
+also distributed under the GPL (v3 or later).
 
-The client library and SQLite backend is distributed under the terms of the
+The client library and SQLite backend are distributed under the terms of the
 BSD License.
 
 The practical effect of the distinction is that you can use the Seshat
