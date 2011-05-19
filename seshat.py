@@ -1,11 +1,31 @@
 #!/usr/bin/env python
 
+# Copyright 2011 Daycos
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see
+# <http://www.gnu.org/licenses/>.
+
+"""This module implements the broker bot portion of the Seshat system
+
+It handles chat requests and relays conversations between web visitors
+and defined Jabber accounts."""
+
 import logging
 import re
 import sys
 import time
 import xmpp
-import ConfigParser
 from collections import namedtuple
 
 import sqlitebackend
@@ -69,7 +89,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
             for chat in self._getchatswithstatus(self.STATUS_WAITING):
                 onlineusers = self._getonlineusers()
                 if onlineusers:
-                    message = "Remote user %s wants to start a conversation. " \
+                    message = "Remote user '%s' wants to start a conversation. " \
                         "To accept this request, reply with the message '!ACCEPT %d'." % (chat.remoteuser, chat.chatid)
                     for localuser in onlineusers:
                         basemessage = message
