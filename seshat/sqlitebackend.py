@@ -89,6 +89,7 @@ class SqliteBackend(object):
         """Mark the chat as closed with the given status code"""
         self.dbconn.execute("UPDATE chat SET status = ?, endtime = ? WHERE chatid = ?", (status, time.time(), chatid))
         self.dbconn.commit()
+        MODULELOG.info("Chat #%d between %s and %s is closed." % (chatid, chatinfo.localuser, chatinfo.remoteuser))
 
     def _getallqueuedlocalmessages(self):
         """Return the (possibly empty) list of messages queued for

@@ -44,6 +44,15 @@ class SeshatClient(sqlitebackend.SqliteBackend):
     message, start chats, and otherwise interact with the
     SeshatServer"""
     
+    def endchat(self, chatid):
+        """Say goodbye"""
+        chatinfo = self._getopenchatinfo(chatid)
+        if chatinfo is None:
+            return
+        self._closechat(chatid, self.STATUS_CLOSED)
+        self._localsend(chatinfo.localuser, "The chat is now closed.")
+        self._queueremote(chatid, "The chat is now closed.")
+
     def getmessage(self, chatid):
         """Get the first queued message for the remoteuser in the given chatid"""
         return self._getfirstqueuedremotemessage(chatid)
@@ -63,3 +72,4 @@ class SeshatClient(sqlitebackend.SqliteBackend):
     def startchat(self, remoteuser):
         """Issue a new chat request and return its chatid"""
         return self._openchat(remoteuser)
+

@@ -94,7 +94,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
                     for localuser in onlineusers:
                         basemessage = message
                         if len(onlineusers) > 1:
-                            message += " Requests were also sent to: %s" % ', '.join(user for user in onlineusers if user != localuser)
+                            message += " Requests were also sent to: %s." % ', '.join(user for user in onlineusers if user != localuser)
                         self._localsend(localuser, message)
                         MODULELOG.info("A chat request from %s was sent to %s" % (chat.remoteuser, localuser))
                         message = basemessage
@@ -214,7 +214,6 @@ class SeshatServer(sqlitebackend.SqliteBackend):
         self._closechat(chatid, self.STATUS_CANCELEDLOCALLY)
         self._localsend(localuser, "You cancelled chat #%d." % chatid)
         self._queueremote(chatid, "Your chat was cancelled.")
-        MODULELOG.info("%s cancelled chat #%d with %s" % (localuser, chatid, chatinfo.remoteuser))
         
     @_handlecommand('FINISH')
     def _command_finish(self, localuser):
@@ -226,7 +225,6 @@ class SeshatServer(sqlitebackend.SqliteBackend):
         self._closechat(currentchat.chatid, self.STATUS_CLOSED)
         self._localsend(localuser, "The chat is now closed.")
         self._queueremote(currentchat.chatid, "The chat is now closed.")
-        MODULELOG.info("%s closed chat #%d with %s" % (localuser, currentchat.chatid, currentchat.remoteuser))
 
     @_handlecommand('HELP')
     def _command_help(self, localuser):
