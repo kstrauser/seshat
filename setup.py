@@ -2,8 +2,8 @@ from distutils.core import setup
 
 setup(
     name = 'Seshat',
-    version = '0.1.0',
-    py_modules=['client', 'seshat', 'sqlitebackend'],
+    version = '0.1.1',
+    packages=['seshat'],
     description = 'Sessioned chat system linking Ajax web interfaces with internal Jabber services',
     author='Kirk Strauser',
     author_email='kirk@strauser.com',
