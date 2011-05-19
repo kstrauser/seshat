@@ -89,12 +89,13 @@ class SqliteBackend(object):
         """Mark the chat as closed with the given status code"""
         self.dbconn.execute("UPDATE chat SET status = ?, endtime = ? WHERE chatid = ?", (status, time.time(), chatid))
         self.dbconn.commit()
+        chatinfo = self._getchatinfo(chatid)
         MODULELOG.info("Chat #%d between %s and %s is closed." % (chatid, chatinfo.localuser, chatinfo.remoteuser))
 
     def _getallqueuedlocalmessages(self):
         """Return the (possibly empty) list of messages queued for
         delivery to localusers"""
-        rows = self.dbconn.execute("SELECT chat.chatid, chat.localuser, chat.remoteuser, localmessagequeue.messageid, localmessagequeue.message FROM chat JOIN localmessagequeue ON chat.chatid = localmessagequeue.chatid WHERE localmessagequeue.sendtime IS NULL ORDER BY localmessagequeue.messageid").fetchall()
+        rows = self.dbconn.execute("SELECT chat.chatid, chat.localuser, chat.remoteuser, localmessagequeue.messageid, localmessagequeue.message FROM chat JOIN localmessagequeue ON chat.chatid = localmessagequeue.chatid WHERE localmessagequeue.sendtime IS NULL AND chat.localuser IS NOT NULL ORDER BY localmessagequeue.messageid").fetchall()
         if rows is None:
             return []
         return [self.QUEUEDMESSAGE(*row) for row in rows]
@@ -167,7 +168,7 @@ class SqliteBackend(object):
     def _queuelocal(self, chatid, message):
         """Queue a message for delivery to a localuser"""
         self.dbconn.execute("INSERT INTO localmessagequeue (posttime, chatid, message) VALUES (?, ?, ?)",
-                   (time.time(), chatid, message))
+                            (time.time(), chatid, message))
         self.dbconn.commit()
         
     def _queueremote(self, chatid, message):

@@ -53,18 +53,27 @@ class SeshatClient(sqlitebackend.SqliteBackend):
         self._localsend(chatinfo.localuser, "The chat is now closed.")
         self._queueremote(chatid, "The chat is now closed.")
 
-    def getmessage(self, chatid):
+    def getmessage(self, chatid, remoteuser):
         """Get the first queued message for the remoteuser in the given chatid"""
+        chatinfo = self._getchatinfo(chatid)
+        if chatinfo.remoteuser != remoteuser:
+            return
         return self._getfirstqueuedremotemessage(chatid)
     
     def isavailable(self):
         """Returns True if at least one localuser is online, or else False"""
         return bool(self._getonlineusers())
 
-    def sendmessage(self, chatid, message):
+    def sendmessage(self, chatid, remoteuser, message):
         """Send a Jabber message to the chat's localuser. Return True
         if the message was sent, otherwise False."""
-        if self._getopenchatinfo(chatid) is None:
+        chatinfo = self._getchatinfo(chatid)
+        if chatinfo.remoteuser != remoteuser:
+            return False
+        if chatinfo.status in (self.STATUS_WAITING, self.STATUS_NOTIFIED):
+            self._queueremote(chatid, "Your message will be delivered when the chat begins.")
+        elif chatinfo.status in (self.STATUS_CLOSED, self.STATUS_FAILED, self.STATUS_CANCELEDLOCALLY):
+            self._queueremote(chatid, "This chat is already closed.")
             return False
         self._queuelocal(chatid, message)
         return True

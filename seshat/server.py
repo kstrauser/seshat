@@ -192,7 +192,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
         self._acceptchat(chatid, localuser)
         self._localsend(localuser, "You are now handling chat #%d. Send '!FINISH' when you are done." % chatid)
         self._queueremote(chatid, "Your chat has started.")
-        MODULELOG.info("%s accepted chat #%d with %s" % (chatinfo.localuser, chatinfo.chatid, chatinfo.remoteuser))
+        MODULELOG.info("%s accepted chat #%d with %s" % (localuser, chatinfo.chatid, chatinfo.remoteuser))
 
     @_handlecommand('CANCEL (\d+)')
     def _command_cancel(self, localuser, chatid):
@@ -245,7 +245,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
     @_handlecommand('WAITING')
     def _command_waiting(self, localuser):
         """!WAITING - Show all open chat requests"""
-        waitingchats = self._getchatswithstatus(self.STATUS_WAITING)
+        waitingchats = self._getchatswithstatus(self.STATUS_WAITING) + self._getchatswithstatus(self.STATUS_NOTIFIED)
         if not waitingchats:
             self._localsend(localuser, "There aren't any open chat requests.""")
         else:
