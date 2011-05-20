@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "- //W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">  
+<html xmlns="http://www.w3.org/1999/xhtml">  
+<head>  
+<title>Chat - Customer Module</title>  
+<link type="text/css" rel="stylesheet" href="/static/chatstyle.css" />  
+</head>  
+<body>  
+<div id="wrapper">  
+    <div id="menu">  
+    </div>  
+  
+    <div id="chatbox">Messages you send will <span class="fromvisitor">look like this</span>, and messages you receive will <span class="tovisitor">look like this</span>.</div>  
+  
+    <form name="message" action="">  
+        <input name="sendtext" type="text" id="sendtext" size="63" />  
+        <input name="action" type="submit"  id="sendbutton" value="Send" />  
+    </form>  
+</div>  
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>  
+<script type="text/javascript">  
+// jQuery Document  
+$(document).ready(function(){  
+  
+    // Append the new message to the bottom of the chat window, and scroll
+    // the window to display it if needed
+    function updateChat(direction, message){
+	if(message == '') { return false; }
+        // Let the browser's DOM escape any HTML entities contained in the message
+        var encoder = document.createElement("div");
+        encoder.innerText = encoder.textContent = message;
+        message = encoder.innerHTML;
+        delete encoder;
+        var oldscrollHeight = $("#chatbox").attr("scrollHeight") - 20; //Scroll height before the request  
+	$("#chatbox").append('<br /><span class="' + direction + 'visitor">' + message + '</span>');
+        var newscrollHeight = $("#chatbox").attr("scrollHeight") - 20; //Scroll height after the request  
+        if(newscrollHeight > oldscrollHeight){  
+            $("#chatbox").animate({ scrollTop: newscrollHeight }, 'normal'); //Autoscroll to bottom of div  
+        }  
+    }
+
+    // User presses "enter" or clicks the "Send" button
+    $("#sendbutton").click(function(){  
+    	var sendtext = $("#sendtext").val();  
+        // Don't pester the server with empty messages
+	if(sendtext == '') { return false; }
+    	$.post("/chat/sendmessage/${chatid}", {text: sendtext});  
+    	$("#sendtext").attr("value", "");  
+	updateChat('from', sendtext);
+    	return false;  
+    });  
+
+    // Poll the server for new messages to display
+    function getNewMessage(){  
+        $.ajax({  
+            url: "/chat/recvmessage/${chatid}",  
+            cache: false,  
+            success: function(response){
+		updateChat('to', response);
+            },  
+        });  
+    };  
+    
+    setInterval (getNewMessage, 1000);
+
+    $("#sendtext").focus();
+});  
+</script>  
+</body>  
+</html>  

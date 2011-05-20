@@ -111,6 +111,13 @@ interfering with each other.
 Seshat is also the name of the Egyption goddess of wisdom, knowledge, and
 writing. This is pure coincidence.
 
+# Credits
+
+Inspiration for building the chat window (and bits of HTML and CSS) came
+from:
+
+http://net.tutsplus.com/tutorials/javascript-ajax/how-to-create-a-simple-web-based-chat-application/
+
 # License
 
 The standalone broker bot uses the GPL-licensed xmpppy library, and is thus
