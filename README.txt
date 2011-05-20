@@ -16,9 +16,13 @@ Or more simply:
 
 # Status
 
-You're looking at a *very* early release. All the nice Ajax-y web stuff
-above? Not there yet. Everything from the client library and down is
-working, though.
+Seshat works, and all the components needed to build a working web chat
+system are present. No unit tests are written yet, but those should come
+shortly.
+
+# Requirements
+
+server.py requires xmpppy, which can be installed by `pip install xmpppy`.
 
 # Configuration
 
