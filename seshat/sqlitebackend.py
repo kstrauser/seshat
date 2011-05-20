@@ -139,9 +139,12 @@ class SqliteBackend(object):
             return None
         return self.CHATINFO(*row)
     
-    def _getonlineusers(self):
-        """Return a list of localusers who are currently online"""
-        return [row[0] for row in self.dbconn.execute("SELECT localuser FROM onlineuser WHERE online = 1").fetchall()]
+    def _getavailablelocalusers(self):
+        """Return a list of localusers who are currently online but
+        not involved in a chat"""
+        chattingusers = self._getchatswithstatus(self.STATUS_OPEN)
+        return [row[0] for row in self.dbconn.execute("SELECT localuser FROM onlineuser WHERE online = 1").fetchall()
+                if row[0] not in chattingusers]
 
     def _getopenchatinfo(self, chatid):
         """Like _getchatinfo, but only return information if the chat

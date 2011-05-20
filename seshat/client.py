@@ -62,7 +62,7 @@ class SeshatClient(sqlitebackend.SqliteBackend):
     
     def isavailable(self):
         """Returns True if at least one localuser is online, or else False"""
-        return bool(self._getonlineusers())
+        return bool(self._getavailablelocalusers())
 
     def sendmessage(self, chatid, remoteuser, message):
         """Send a Jabber message to the chat's localuser. Return True

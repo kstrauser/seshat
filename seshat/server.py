@@ -87,14 +87,14 @@ class SeshatServer(sqlitebackend.SqliteBackend):
             # Look for new chat requests and notify all online
             # localusers of each one
             for chat in self._getchatswithstatus(self.STATUS_WAITING):
-                onlineusers = self._getonlineusers()
-                if onlineusers:
+                availableusers = self._getavailablelocalusers()
+                if availableusers:
                     message = "Remote user '%s' wants to start a conversation. " \
                         "To accept this request, reply with the message '!ACCEPT %d'." % (chat.remoteuser, chat.chatid)
-                    for localuser in onlineusers:
+                    for localuser in availableusers:
                         basemessage = message
                         if len(onlineusers) > 1:
-                            message += " Requests were also sent to: %s." % ', '.join(user for user in onlineusers if user != localuser)
+                            message += " Requests were also sent to: %s." % ', '.join(user for user in availableusers if user != localuser)
                         self._localsend(localuser, message)
                         MODULELOG.info("A chat request from %s was sent to %s" % (chat.remoteuser, localuser))
                         message = basemessage
