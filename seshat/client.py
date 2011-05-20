@@ -50,7 +50,7 @@ class SeshatClient(sqlitebackend.SqliteBackend):
         if chatinfo is None:
             return
         self._closechat(chatid, self.STATUS_CLOSED)
-        self._localsend(chatinfo.localuser, "The chat is now closed.")
+        self._queuelocal(chatid, "The chat is now closed.")
         self._queueremote(chatid, "The chat is now closed.")
 
     def getmessage(self, chatid, remoteuser):
@@ -78,7 +78,7 @@ class SeshatClient(sqlitebackend.SqliteBackend):
         self._queuelocal(chatid, message)
         return True
 
-    def startchat(self, remoteuser):
+    def startchat(self, remoteuser, message=''):
         """Issue a new chat request and return its chatid"""
-        return self._openchat(remoteuser)
+        return self._openchat(remoteuser, message)
 

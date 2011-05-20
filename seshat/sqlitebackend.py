@@ -36,13 +36,12 @@ assumptions about the underlying data storage."""
 import logging
 import sqlite3
 import time
-import ConfigParser
 from collections import namedtuple
 
 MODULELOG = logging.getLogger(__name__)
 
 CREATEQUERIES = [
-    "CREATE TABLE chat (chatid INTEGER PRIMARY KEY, localuser TEXT, remoteuser TEXT, starttime INTEGER, endtime INTEGER, status INTEGER)",
+    "CREATE TABLE chat (chatid INTEGER PRIMARY KEY, localuser TEXT, remoteuser TEXT, starttime INTEGER, endtime INTEGER, status INTEGER, startmessage TEXT)",
     "CREATE TABLE localmessagequeue (messageid INTEGER PRIMARY KEY, posttime INTEGER, sendtime INTEGER, chatid INTEGER, message TEXT)",
     "CREATE TABLE onlineuser (localuser TEXT PRIMARY KEY, online INTEGER)",
     "CREATE TABLE remotemessagequeue (messageid INTEGER PRIMARY KEY, posttime INTEGER, sendtime INTEGER, chatid INTEGER, message TEXT)",
@@ -52,7 +51,7 @@ class SqliteBackend(object):
     """An implementation of the Seshat backend API that stores
     everything in a SQLite database"""
     
-    CHATINFO = namedtuple('ChatInfo', ('chatid', 'localuser', 'remoteuser', 'starttime', 'endtime', 'status'))
+    CHATINFO = namedtuple('ChatInfo', ('chatid', 'localuser', 'remoteuser', 'starttime', 'endtime', 'status', 'startmessage'))
     QUEUEDMESSAGE = namedtuple('QueuedMessage', ('chatid', 'localuser', 'remoteuser', 'messageid', 'message'))
 
     STATUS_WAITING = 0
@@ -62,12 +61,10 @@ class SqliteBackend(object):
     STATUS_FAILED = 4
     STATUS_CANCELEDLOCALLY = 5
     
-    def __init__(self, configfile):
+    def __init__(self, sqlitedb):
         """Establish a database connection and create the tables
         necessary tables if they don't already exist"""
-        self.config = ConfigParser.ConfigParser()
-        self.config.read(configfile)
-        self.dbconn = sqlite3.connect(self.config.get('Seshat', 'sqlitedb'))
+        self.dbconn = sqlite3.connect(sqlitedb)
         for query in CREATEQUERIES:
             try:
                 self.dbconn.execute(query)
@@ -100,9 +97,16 @@ class SqliteBackend(object):
             return []
         return [self.QUEUEDMESSAGE(*row) for row in rows]
     
+    def _getavailablelocalusers(self):
+        """Return a list of localusers who are currently online but
+        not involved in a chat"""
+        chattingusers = self._getchatswithstatus(self.STATUS_OPEN)
+        return [row[0] for row in self.dbconn.execute("SELECT localuser FROM onlineuser WHERE online = 1").fetchall()
+                if row[0] not in chattingusers]
+
     def _getchatinfo(self, chatid):
         """Return all the stored information about a chat"""
-        row = self.dbconn.execute("SELECT chatid, localuser, remoteuser, starttime, endtime, status FROM chat WHERE chatid = ?",
+        row = self.dbconn.execute("SELECT chatid, localuser, remoteuser, starttime, endtime, status, startmessage FROM chat WHERE chatid = ?",
                                   (chatid,)).fetchone()
         if row is None:
             return None
@@ -110,7 +114,7 @@ class SqliteBackend(object):
 
     def _getchatswithstatus(self, status):
         """Return the (possibly empty) list of chats with the given status"""
-        rows = self.dbconn.execute("SELECT chatid, localuser, remoteuser, starttime, endtime, status FROM chat WHERE status = ?", (status,)).fetchall()
+        rows = self.dbconn.execute("SELECT chatid, localuser, remoteuser, starttime, endtime, status, startmessage FROM chat WHERE status = ?", (status,)).fetchall()
         if rows is None:
             return []
         return [self.CHATINFO(*row) for row in rows]
@@ -133,19 +137,12 @@ class SqliteBackend(object):
     def _getlocaluserchat(self, localuser):
         """Return information about the localuser's current open chat,
         if any (otherwise None)"""
-        row = self.dbconn.execute("SELECT chatid, localuser, remoteuser, starttime, endtime, status FROM chat WHERE localuser = ? AND status = ?",
+        row = self.dbconn.execute("SELECT chatid, localuser, remoteuser, starttime, endtime, status, startmessage FROM chat WHERE localuser = ? AND status = ?",
                                   (localuser, self.STATUS_OPEN)).fetchone()
         if row is None:
             return None
         return self.CHATINFO(*row)
     
-    def _getavailablelocalusers(self):
-        """Return a list of localusers who are currently online but
-        not involved in a chat"""
-        chattingusers = self._getchatswithstatus(self.STATUS_OPEN)
-        return [row[0] for row in self.dbconn.execute("SELECT localuser FROM onlineuser WHERE online = 1").fetchall()
-                if row[0] not in chattingusers]
-
     def _getopenchatinfo(self, chatid):
         """Like _getchatinfo, but only return information if the chat
         is open"""
@@ -159,10 +156,10 @@ class SqliteBackend(object):
         self.dbconn.execute("UPDATE localmessagequeue SET sendtime = ? WHERE messageid = ?", (time.time(), messageid))
         self.dbconn.commit()
     
-    def _openchat(self, remoteuser):
+    def _openchat(self, remoteuser, message=''):
         """Issue a new chat request and return its chatid"""
-        self.dbconn.execute("INSERT INTO chat (remoteuser, starttime, status) VALUES (?, ?, ?)",
-                   (remoteuser, time.time(), self.STATUS_WAITING))
+        self.dbconn.execute("INSERT INTO chat (remoteuser, starttime, status, startmessage) VALUES (?, ?, ?, ?)",
+                            (remoteuser, time.time(), self.STATUS_WAITING, message))
         chatid = self.dbconn.execute("SELECT last_insert_rowid()").fetchone()[0]
         self.dbconn.commit()
         self._queueremote(chatid, "Your chat request has been sent. Please wait while it is answered.")

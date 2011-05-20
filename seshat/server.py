@@ -23,7 +23,6 @@ and defined Jabber accounts."""
 
 import logging
 import re
-import sys
 import time
 import xmpp
 from collections import namedtuple
@@ -55,15 +54,14 @@ class SeshatServer(sqlitebackend.SqliteBackend):
     
     #### Public methods
 
-    def __init__(self, configfile):
+    def __init__(self, username, password, localusers, sqlitedb):
         """Establish a connection to a Jabber server and prepare to
         manage it"""
-        super(SeshatServer, self).__init__(configfile)
+        super(SeshatServer, self).__init__(sqlitedb)
         
-        self.localusers = [user.strip() for user in self.config.get('Seshat', 'localusers').split(',')]
-        self.xmppusername = self.config.get('Seshat', 'xmppusername')
-        self.xmpppassword = self.config.get('Seshat', 'xmpppassword')
-        self.jid = xmpp.protocol.JID(self.xmppusername)
+        self.localusers = localusers
+        self.password = password
+        self.jid = xmpp.protocol.JID(username)
         self.xmppserver = self.jid.getDomain()
 
         # Set all users to offline. Their real status will be updated
@@ -89,11 +87,13 @@ class SeshatServer(sqlitebackend.SqliteBackend):
             for chat in self._getchatswithstatus(self.STATUS_WAITING):
                 availableusers = self._getavailablelocalusers()
                 if availableusers:
-                    message = "Remote user '%s' wants to start a conversation. " \
-                        "To accept this request, reply with the message '!ACCEPT %d'." % (chat.remoteuser, chat.chatid)
+                    message = "Remote user '%s' wants to start a conversation." % chat.remoteuser
+                    if chat.startmessage:
+                        message += " The starting message is: '%s'" % chat.startmessage
+                    message += " To accept this request, reply with the message '!ACCEPT %d'." % chat.chatid
                     for localuser in availableusers:
                         basemessage = message
-                        if len(onlineusers) > 1:
+                        if len(availableusers) > 1:
                             message += " Requests were also sent to: %s." % ', '.join(user for user in availableusers if user != localuser)
                         self._localsend(localuser, message)
                         MODULELOG.info("A chat request from %s was sent to %s" % (chat.remoteuser, localuser))
@@ -120,7 +120,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
     def _connect(self):
         """Connect to the Jabber server"""
         self.client.connect()
-        self.client.auth(self.jid.getNode(), self.xmpppassword)
+        self.client.auth(self.jid.getNode(), self.password)
         self.client.sendInitPresence()
 
     def _replywithhelp(self, localuser, message):
@@ -212,8 +212,9 @@ class SeshatServer(sqlitebackend.SqliteBackend):
             self._replywithhelp(localuser, "Chat #%d is already closed." % chatid)
             return
         self._closechat(chatid, self.STATUS_CANCELEDLOCALLY)
-        self._localsend(localuser, "You cancelled chat #%d." % chatid)
-        self._queueremote(chatid, "Your chat was cancelled.")
+        self._localsend(localuser, "You canceled chat #%d." % chatid)
+        self._queueremote(chatid, "Your chat was canceled.")
+        MODULELOG.info("%s canceled chat #%d" % (localuser, chatid))
         
     @_handlecommand('FINISH')
     def _command_finish(self, localuser):
@@ -257,11 +258,33 @@ class SeshatServer(sqlitebackend.SqliteBackend):
                            "Send '!ACCEPT n' to accept a chat request. "
                            "Send '!CANCEL n' to cancel a chat request." % chats)
         MODULELOG.info("%s asked for a list of waiting chats" % localuser)
+
+def main(configfile, section):
+    """Launch a broker bot using settings found in the named
+    configuration (.ini) file, in the specified section"""
+    import ConfigParser
+    
+    logging.basicConfig()
+    logging.getLogger('').setLevel(logging.DEBUG)
+    config = ConfigParser.ConfigParser()
+    config.read(configfile)
+    setting = {}
+
+    # Prefer keys named like "seshat_username", but fall back to
+    # "username" if they don't exist. This is so that Seshat settings
+    # can be embedded in Pyramid config files with little risk of
+    # conflicts.
+    for key in ('username', 'password', 'localusers', 'sqlitedb'):
+        try:
+            setting[key] = config.get(section, 'seshat_%s' % key)
+        except ConfigParser.NoOptionError:
+            setting[key] = config.get(section, '%s' % key)
+    setting['localusers'] = [localuser.strip() for localuser in setting['localusers'].split(',')]
+    SeshatServer(setting['username'], setting['password'], setting['localusers'], setting['sqlitedb']).run()
         
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print "You must give a config file"
+    import sys
+    if len(sys.argv) != 3:
+        print "You must give a config file and section name"
         sys.exit()
-    logging.basicConfig()
-    MODULELOG.setLevel(logging.DEBUG)
-    SeshatServer(sys.argv[1]).run()
+    main(sys.argv[1], sys.argv[2])

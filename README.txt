@@ -22,33 +22,41 @@ working, though.
 
 # Configuration
 
-This is a complete, valid Seshat config file:
+The server needs:
 
-    [Seshat]
-    sqlitedb = /tmp/seshat.db
-    localusers = joe@example.com, bob@customerservice.example.com
-    xmppusername = webchat@example.com
-    xmpppassword = mypassword
+* A Jabber username to log in as,
+* The password for that account,
+* A list of localusers to receive chat requests, and
+* The path to a SQLite database (which it will create if it doesn't already
+exist).
 
-It uses a SQLite database named /tmp/seshat.db (which it will create if one
-doesn't already exist), logs into your Jabber server under the account
-"webchat@example.com", and sends incoming chat requests to Joe and Bob.
+The client needs:
+
+* The path to a SQLite database (which it will create if it doesn't already
+exist).
 
 # Usage
 
 [Docs about adding the HTML to your web app]
 
-Create an account on your Jabber server that the "seshat.py" broker bot can
+Create an account on your Jabber server that the "server.py" broker bot can
 log into. This is that account that will send messages to the other accounts
 defined in "localusers" in the .ini file.
 
-Run the seshat broker bot like so:
+As a convenience, "server.py" can be run from the command line with the name
+of a .ini config file and the name of the section to search for its
+settings. This is a complete Seshat config file:
 
-    $ python seshat.py seshat.ini
+    [Seshat]
+    sqlitedb = /tmp/seshat.db
+    localusers = joe@example.com, bob@customerservice.example.com
+    username = webchat@example.com
+    password = mypassword
 
-When at least one of the local users is online, the web chat widget will be
-available. When none of them are online, the chat widget will be
-unavailable.
+If it were named "sample.ini", you could run the server with the command
+line:
+
+    $ ./server.py sample.ini Seshat
 
 # Chatting
 
