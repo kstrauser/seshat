@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name = 'Seshat',
-    version = '0.1.1',
+    version = '0.2.0',
     packages=['seshat'],
     description = 'Sessioned chat system linking Ajax web interfaces with internal Jabber services',
     author='Kirk Strauser',
@@ -11,7 +11,7 @@ setup(
     long_description='Seshat provides a simple method for adding real-time chat windows to your (Pyramid) web applications so that visitors can easily talk to any of a configured set of Jabber users. An example use would be allowing customers to chat with internal customer service representatives. The name is short for "sessioned chat", and resemblence to the Egyptian goddess of wisdom, knowledge, and writing is coincidental.',
     keywords=['jabber', 'xmpp', 'chat', 'pyramid', 'ajax'],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Environment :: No Input/Output (Daemon)',
         'Environment :: Web Environment',
         'Framework :: BFG',
@@ -27,4 +27,5 @@ setup(
         ],
     install_requires=['xmpppy'],
     data_files=[('', ['example.ini'])],
+    package_data={'seshat': ['pyramid/*']},
         )
