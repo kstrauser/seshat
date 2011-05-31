@@ -2,3 +2,7 @@
 MANIFEST
 dist/*
 daycos.ini
+.Python
+bin/
+include/
+lib/

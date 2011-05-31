@@ -54,14 +54,16 @@ class SeshatClient(sqlitebackend.SqliteBackend):
         self._queueremote(chatid, "The chat is now closed.")
 
     def getmessage(self, chatid, remoteuser):
-        """Get the first queued message for the remoteuser in the given chatid"""
+        """Get the first queued message for the remoteuser in the
+        given chatid"""
         chatinfo = self._getchatinfo(chatid)
         if chatinfo.remoteuser != remoteuser:
             return
         return self._getfirstqueuedremotemessage(chatid)
     
     def isavailable(self):
-        """Returns True if at least one localuser is online, or else False"""
+        """Returns True if at least one localuser is online, or else
+        False"""
         return bool(self._getavailablelocalusers())
 
     def sendmessage(self, chatid, remoteuser, message):

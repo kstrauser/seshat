@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pylint: disable=C0301
 
 # Copyright (c) 2011, Daycos
 # All rights reserved.
@@ -36,7 +37,6 @@ assumptions about the underlying data storage."""
 import logging
 import sqlite3
 import time
-from collections import namedtuple
 
 MODULELOG = logging.getLogger(__name__)
 
@@ -47,12 +47,34 @@ CREATEQUERIES = [
     "CREATE TABLE remotemessagequeue (messageid INTEGER PRIMARY KEY, posttime INTEGER, sendtime INTEGER, chatid INTEGER, message TEXT)",
     ]
 
+class ChatInfo(object):
+    """A chat's parameters"""
+    def __init__(self, chatid, localuser, remoteuser, starttime, endtime, status, startmessage):
+        """This would be a namedtuple, but those aren't available in
+        all the versions of Python that Pyramid supports and I'd hate
+        to leave someone out over something so trivial."""
+        self.chatid = chatid
+        self.localuser = localuser
+        self.remoteuser = remoteuser
+        self.starttime = starttime
+        self.endtime = endtime
+        self.status = status
+        self.startmessage = startmessage
+
+class QueuedMessage(object):
+    """Everything needed to represent a message that's been stored for
+    delivery to a localuser"""
+    def __init__(self, chatid, localuser, remoteuser, messageid, message):
+        """See: ChatInfo.__init__.__doc__"""
+        self.chatid = chatid
+        self.localuser = localuser
+        self.remoteuser = remoteuser
+        self.messageid = messageid
+        self.message = message
+        
 class SqliteBackend(object):
     """An implementation of the Seshat backend API that stores
     everything in a SQLite database"""
-    
-    CHATINFO = namedtuple('ChatInfo', ('chatid', 'localuser', 'remoteuser', 'starttime', 'endtime', 'status', 'startmessage'))
-    QUEUEDMESSAGE = namedtuple('QueuedMessage', ('chatid', 'localuser', 'remoteuser', 'messageid', 'message'))
 
     STATUS_WAITING = 0
     STATUS_NOTIFIED = 1
@@ -95,7 +117,7 @@ class SqliteBackend(object):
         rows = self.dbconn.execute("SELECT chat.chatid, chat.localuser, chat.remoteuser, localmessagequeue.messageid, localmessagequeue.message FROM chat JOIN localmessagequeue ON chat.chatid = localmessagequeue.chatid WHERE localmessagequeue.sendtime IS NULL AND chat.localuser IS NOT NULL ORDER BY localmessagequeue.messageid").fetchall()
         if rows is None:
             return []
-        return [self.QUEUEDMESSAGE(*row) for row in rows]
+        return [QueuedMessage(*row) for row in rows]
     
     def _getavailablelocalusers(self):
         """Return a list of localusers who are currently online but
@@ -110,14 +132,14 @@ class SqliteBackend(object):
                                   (chatid,)).fetchone()
         if row is None:
             return None
-        return self.CHATINFO(*row)
+        return ChatInfo(*row)
 
     def _getchatswithstatus(self, status):
         """Return the (possibly empty) list of chats with the given status"""
         rows = self.dbconn.execute("SELECT chatid, localuser, remoteuser, starttime, endtime, status, startmessage FROM chat WHERE status = ?", (status,)).fetchall()
         if rows is None:
             return []
-        return [self.CHATINFO(*row) for row in rows]
+        return [ChatInfo(*row) for row in rows]
 
     def _getfirstqueuedremotemessage(self, chatid):
         """Return the oldest queued message for a chat"""
@@ -141,7 +163,7 @@ class SqliteBackend(object):
                                   (localuser, self.STATUS_OPEN)).fetchone()
         if row is None:
             return None
-        return self.CHATINFO(*row)
+        return ChatInfo(*row)
     
     def _getopenchatinfo(self, chatid):
         """Like _getchatinfo, but only return information if the chat

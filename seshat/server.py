@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pylint: disable=C0301
 
 # Copyright 2011 Daycos
 
@@ -25,7 +26,6 @@ import logging
 import re
 import time
 import xmpp
-from collections import namedtuple
 
 import sqlitebackend
 
@@ -33,7 +33,14 @@ MODULELOG = logging.getLogger(__name__)
 
 # This stores the list of methods decorated by _handlecommand
 COMMANDPATTERNS = []
-COMMANDDEF = namedtuple('CommandDefinition', ('function', 'pattern', 'help'))
+
+class CommandDefinition(object):
+    """Describes a function that implements a chat command"""
+    def __init__(self, function, pattern, help_):
+        """See: sqlitebackend.ChatInfo.__init__.__doc__"""
+        self.function = function
+        self.pattern = pattern
+        self.help = help_
 
 def _handlecommand(pattern):
     """Associate the decorated function with the given regular
@@ -43,7 +50,7 @@ def _handlecommand(pattern):
     def register(function):
         """Register the function"""
         MODULELOG.debug("Registering %s to handle %s" % (function, pattern))
-        COMMANDPATTERNS.append(COMMANDDEF(function, re.compile('^!%s\s*$' % pattern, re.IGNORECASE), function.__doc__))
+        COMMANDPATTERNS.append(CommandDefinition(function, re.compile('^!%s\s*$' % pattern, re.IGNORECASE), function.__doc__))
         return function
     return register
 
