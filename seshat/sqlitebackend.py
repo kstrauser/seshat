@@ -36,15 +36,20 @@ assumptions about the underlying data storage."""
 
 import logging
 import sqlite3
+import sys
 import time
 
+CURRENTDBVERSION = 1
+    
 MODULELOG = logging.getLogger(__name__)
 
 CREATEQUERIES = [
     "CREATE TABLE chat (chatid INTEGER PRIMARY KEY, localuser TEXT, remoteuser TEXT, starttime INTEGER, endtime INTEGER, status INTEGER, startmessage TEXT)",
     "CREATE TABLE localmessagequeue (messageid INTEGER PRIMARY KEY, posttime INTEGER, sendtime INTEGER, chatid INTEGER, message TEXT)",
-    "CREATE TABLE onlineuser (localuser TEXT PRIMARY KEY, online INTEGER)",
+    "CREATE TABLE onlinestatus (localuser TEXT, resource TEXT, online INTEGER, PRIMARY KEY (localuser, resource))",
     "CREATE TABLE remotemessagequeue (messageid INTEGER PRIMARY KEY, posttime INTEGER, sendtime INTEGER, chatid INTEGER, message TEXT)",
+    "CREATE TABLE dbversion (versionid INTEGER PRIMARY KEY, version INTEGER)",
+    "INSERT INTO dbversion (versionid, version) VALUES (1, %d)" % CURRENTDBVERSION,
     ]
 
 class ChatInfo(object):
@@ -82,16 +87,54 @@ class SqliteBackend(object):
     STATUS_CLOSED = 3
     STATUS_FAILED = 4
     STATUS_CANCELEDLOCALLY = 5
-    
+
     def __init__(self, sqlitedb):
         """Establish a database connection and create the tables
         necessary tables if they don't already exist"""
         self.dbconn = sqlite3.connect(sqlitedb)
-        for query in CREATEQUERIES:
-            try:
-                self.dbconn.execute(query)
-            except sqlite3.OperationalError:
-                pass
+        initdb = False
+        try:
+            versionquery = self.dbconn.execute('SELECT version FROM dbversion WHERE versionid = 1')
+        except sqlite3.OperationalError:
+            # If the 'version' table doesn't exist, then this is a new
+            # database and needs to be initialized
+            MODULELOG.info('Unable to find the database version table')
+            initdb = True
+        else:
+            dbversionrow = versionquery.fetchone()
+            if dbversionrow is None:
+                MODULELOG.info('Unable to read the database version')
+                # A previous initialization didn't get as far as
+                # setting the database version. Wierd, but let's
+                # handle it rationally.
+                initdb = True
+            else:
+                dbversion = dbversionrow[0]
+                if dbversion < CURRENTDBVERSION:
+                    localqueuesize = self.dbconn.execute('SELECT count(1) FROM localmessagequeue WHERE sendtime IS NULL').fetchone()[0]
+                    remotequeuesize = self.dbconn.execute('SELECT count(1) FROM remotemessagequeue WHERE sendtime IS NULL').fetchone()[0]
+                    unclosedchatcount = self.dbconn.execute('SELECT count(1) FROM chat WHERE STATUS IN (?, ?, ?)',
+                                                            (self.STATUS_WAITING, self.STATUS_NOTIFIED, self.STATUS_OPEN)).fetchone()[0]
+                    message = 'The Seshat database (%s) is out of date. It has %d queued incoming message(s), %d queued outgoing message(s), and %s unclosed chats.' % (
+                        sqlitedb,
+                        localqueuesize,
+                        remotequeuesize,
+                        unclosedchatcount)
+                    if localqueuesize or remotequeuesize or unclosedchatcount:
+                        message += ' Only delete the database file if you are willing to lose the unsent messages and open chats.'
+                    else:
+                        message += ' You may safely delete the current database file. It will be created automatically the next time you launch the server.'
+                    MODULELOG.critical(message)
+                    sys.exit(-1)
+        if initdb:
+            MODULELOG.info('Creating and populating the database')
+            for query in CREATEQUERIES:
+                try:
+                    self.dbconn.execute(query)
+                except sqlite3.OperationalError:
+                    pass
+                else:
+                    MODULELOG.debug('Executed: %s', query)
 
     def _acceptchat(self, chatid, localuser):
         """Open a chat and set its localuser to the given value"""
@@ -101,7 +144,7 @@ class SqliteBackend(object):
             
     def _clearonlineusers(self):
         """Remove the cache of online user information"""
-        self.dbconn.execute("DELETE from onlineuser")
+        self.dbconn.execute("DELETE from onlinestatus")
         self.dbconn.commit()
 
     def _closechat(self, chatid, status):
@@ -120,10 +163,10 @@ class SqliteBackend(object):
         return [QueuedMessage(*row) for row in rows]
     
     def _getavailablelocalusers(self):
-        """Return a list of localusers who are currently online but
-        not involved in a chat"""
+        """Return a list of localusers who are currently online from
+        at least one place, but not involved in a chat"""
         chattingusers = self._getchatswithstatus(self.STATUS_OPEN)
-        return [row[0] for row in self.dbconn.execute("SELECT localuser FROM onlineuser WHERE online = 1").fetchall()
+        return [row[0] for row in self.dbconn.execute("SELECT DISTINCT localuser FROM onlinestatus WHERE online = 1").fetchall()
                 if row[0] not in chattingusers]
 
     def _getchatinfo(self, chatid):
@@ -204,10 +247,13 @@ class SqliteBackend(object):
         self.dbconn.execute("UPDATE chat SET status = ? WHERE chatid = ?", (status, chatid))
         self.dbconn.commit()
         
-    def _setonlinestatus(self, localuser, status):
-        """Update (or store) the localuser's online status"""
+    def _setonlinestatus(self, localuser, resource, online):
+        """Update (or store) the number of accounts where the
+        localuser is online. For example, they might be online with
+        both their desktop and laptop."""
+        online = int(online)
         try:
-            self.dbconn.execute("INSERT INTO onlineuser (localuser, online) VALUES (?, ?)", (localuser, int(status)))
+            self.dbconn.execute("INSERT INTO onlinestatus (localuser, resource, online) VALUES (?, ?, ?)", (localuser, resource, online))
         except sqlite3.IntegrityError:
-            self.dbconn.execute("UPDATE onlineuser SET online = ? WHERE localuser = ?", (int(status), localuser))
+            self.dbconn.execute("UPDATE onlinestatus SET online = ? WHERE localuser = ? AND resource = ?", (online, localuser, resource))
         self.dbconn.commit()

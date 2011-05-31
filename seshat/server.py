@@ -75,10 +75,9 @@ class SeshatServer(sqlitebackend.SqliteBackend):
         # by _presencehandler as soon as we connect and send our
         # presence.
         self._clearonlineusers()
-        self.online = {}
+        self.onlineresource = {}
         for localuser in self.localusers:
-            self.online[localuser] = False
-            self._setonlinestatus(localuser, False)
+            self.onlineresource[localuser] = {}
         
         # Establish a Jabber connection
         self.client = xmpp.Client(self.xmppserver, debug=[])
@@ -162,13 +161,19 @@ class SeshatServer(sqlitebackend.SqliteBackend):
 
     def _presencehandler(self, con, presence):
         """Update a localuser's online status"""
-        localuser = presence.getFrom().getStripped()
+        user = presence.getFrom()
+        localuser = user.getStripped()
         if localuser not in self.localusers:
             return
+        resource = user.getResource()
         online = presence.getType() != 'unavailable' and presence.getShow() is None
-        MODULELOG.debug("%s changed status to '%s'" % (localuser, 'online' if online else 'offline'))
-        self.online[localuser] = online
-        self._setonlinestatus(localuser, online)
+        self.onlineresource[localuser][resource] = online
+        currentcount = sum(self.onlineresource[localuser].values())
+        MODULELOG.debug("%s/%s changed status to '%s' (online count: %d)" % (localuser,
+                                                                             resource,
+                                                                             'online' if online else 'offline',
+                                                                             currentcount))
+        self._setonlinestatus(localuser, resource, online)
 
     #### Command handlers - these act on commands from localusers
 
