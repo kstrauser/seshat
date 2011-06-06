@@ -36,13 +36,13 @@ COMMANDPATTERNS = []
 
 class CommandDefinition(object):
     """Describes a function that implements a chat command"""
-    def __init__(self, function, pattern, help_):
+    def __init__(self, function, pattern, helptext):
         """See: sqlitebackend.ChatInfo.__init__.__doc__"""
         self.function = function
         self.pattern = pattern
-        self.help = help_
+        self.helptext = helptext
 
-def _handlecommand(pattern):
+def _handlecommand(pattern, helptext):
     """Associate the decorated function with the given regular
     expression. All commands start with '!', followed immediately by
     the pattern, then optional whitespace until the end of the
@@ -50,7 +50,7 @@ def _handlecommand(pattern):
     def register(function):
         """Register the function"""
         MODULELOG.debug("Registering %s to handle %s" % (function, pattern))
-        COMMANDPATTERNS.append(CommandDefinition(function, re.compile('^!%s\s*$' % pattern, re.IGNORECASE), function.__doc__))
+        COMMANDPATTERNS.append(CommandDefinition(function, re.compile('^!%s\s*$' % pattern, re.IGNORECASE), helptext))
         return function
     return register
 
@@ -147,6 +147,8 @@ class SeshatServer(sqlitebackend.SqliteBackend):
             return
         localuser = event.getFrom().getStripped()
         message = event.getBody()
+        if message is None:
+            return
         for pattern in COMMANDPATTERNS:
             matchresult = pattern.pattern.match(message)
             if matchresult is not None:
@@ -177,7 +179,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
 
     #### Command handlers - these act on commands from localusers
 
-    @_handlecommand('ACCEPT (\d+)')
+    @_handlecommand('ACCEPT (\d+)', '!ACCEPT n - Accept chat request #n')
     def _command_accept(self, localuser, chatid):
         """!ACCEPT n - Accept chat request #n"""
         chatid = int(chatid)
@@ -206,7 +208,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
         self._queueremote(chatid, "Your chat has started.")
         MODULELOG.info("%s accepted chat #%d with %s" % (localuser, chatinfo.chatid, chatinfo.remoteuser))
 
-    @_handlecommand('CANCEL (\d+)')
+    @_handlecommand('CANCEL (\d+)', '!CANCEL n - Cancel chat request #n')
     def _command_cancel(self, localuser, chatid):
         """!CANCEL n - Cancel chat request #n"""
         chatid = int(chatid)
@@ -228,7 +230,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
         self._queueremote(chatid, "Your chat was canceled.")
         MODULELOG.info("%s canceled chat #%d" % (localuser, chatid))
         
-    @_handlecommand('FINISH')
+    @_handlecommand('FINISH', '!FINISH - Close your current chat')
     def _command_finish(self, localuser):
         """!FINISH - Close your current chat"""
         currentchat = self._getlocaluserchat(localuser)
@@ -239,13 +241,13 @@ class SeshatServer(sqlitebackend.SqliteBackend):
         self._localsend(localuser, "The chat is now closed.")
         self._queueremote(currentchat.chatid, "The chat is now closed.")
 
-    @_handlecommand('HELP')
+    @_handlecommand('HELP', '!HELP - Show available commands')
     def _command_help(self, localuser):
         """!HELP - Show available commands"""
         self._localsend(localuser,
-                        "Available options:\n" + '\n'.join(sorted(pattern.help for pattern in COMMANDPATTERNS)))
+                        "Available options:\n" + '\n'.join(sorted(pattern.helptext for pattern in COMMANDPATTERNS)))
 
-    @_handlecommand('STATUS')
+    @_handlecommand('STATUS', '!STATUS - Show your current chat status')
     def _command_status(self, localuser):
         """!STATUS - Show your current chat status"""
         currentchat = self._getlocaluserchat(localuser)
@@ -255,7 +257,7 @@ class SeshatServer(sqlitebackend.SqliteBackend):
             self._localsend(localuser, "You are in chat #%d with %s. Send '!FINISH' when you are done." % (
                     currentchat.chatid, currentchat.remoteuser))
         
-    @_handlecommand('WAITING')
+    @_handlecommand('WAITING', '!WAITING - Show all open chat requests')
     def _command_waiting(self, localuser):
         """!WAITING - Show all open chat requests"""
         waitingchats = self._getchatswithstatus(self.STATUS_WAITING) + self._getchatswithstatus(self.STATUS_NOTIFIED)

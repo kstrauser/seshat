@@ -1,4 +1,4 @@
-*.pyc
+*.py[co]
 MANIFEST
 dist/*
 daycos.ini
