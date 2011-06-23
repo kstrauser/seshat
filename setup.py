@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name = 'Seshat',
-    version = '0.3.0',
+    version = '0.3.1',
     packages=['seshat'],
     description = 'Sessioned chat system linking Ajax web interfaces with internal Jabber services',
     author='Kirk Strauser',
